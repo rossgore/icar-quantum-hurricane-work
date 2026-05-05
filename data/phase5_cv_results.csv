@@ -1,0 +1,4 @@
+model,base_auc_mean,base_auc_std,quant_auc_mean,quant_auc_std,delta_auc_mean,base_recall_mean,base_recall_std,quant_recall_mean,quant_recall_std,delta_recall_mean
+Logistic Regression,0.7825,0.0857,0.7983,0.0482,0.0158,0.3248,0.2433,0.5176,0.1853,0.1928
+Gradient Boosting,0.7643,0.0531,0.7469,0.063,-0.0173,0.3832,0.1949,0.4128,0.1095,0.0296
+Neural Network,0.8022,0.0719,0.7844,0.0343,-0.0179,0.5202,0.3017,0.3782,0.2278,-0.142

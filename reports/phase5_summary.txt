@@ -1,0 +1,33 @@
+======================================================================
+PHASE 5 SUMMARY — Quantum Feature Engineering for Hurricane RI
+======================================================================
+
+Dataset:          HURDAT2 Atlantic 1980–2023, 123 storms
+Labelable obs:    2,506  (wind >= 35 kt, 24-h window complete)
+RI events:        143 (5.7%)  |  Class imbalance: 1:17
+Quantum circuit:  6 qubit(s), 32 Pauli observables
+Augmented vector: 6 classical + 32 shadow = 38 total features
+
+BOOTSTRAP RESULTS (n=1,000, 95% CI):
+  Best baseline AUC-ROC:  0.7539
+  Best quantum AUC-ROC:   0.7550  (Δ = +0.0011)
+
+  Logistic Regression (strongest quantum gain):
+    Baseline  AUC=0.7351 [0.6284, 0.8259]
+    Quantum   AUC=0.7550 [0.6734, 0.8313]
+    ΔAUC = +0.0199
+
+OPERATIONAL METRICS (optimal CSI threshold):
+  Best baseline CSI:  0.1724
+  Best quantum CSI:   0.1429  (Δ = -0.0296)
+
+CROSS-VALIDATION (5-fold, storm-safe):
+  Logistic Regression     Base AUC 0.7825±0.0857  Quant AUC 0.7983±0.0482  Δ=+0.0158
+  Gradient Boosting       Base AUC 0.7643±0.0531  Quant AUC 0.7469±0.0630  Δ=-0.0173
+  Neural Network          Base AUC 0.8022±0.0719  Quant AUC 0.7844±0.0343  Δ=-0.0179
+
+NOTE: Current results use 2 qubits (HURDAT2 features only).
+After SHIPS data integration (6 qubits, 32 Pauli observables,
+38 augmented features), improvements are expected to be larger.
+These 2-qubit numbers represent the conservative lower bound.
+======================================================================

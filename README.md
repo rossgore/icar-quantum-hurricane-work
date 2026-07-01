@@ -47,14 +47,7 @@ From `reports/phase5_summary.txt` (123 storms, 2,506 labelable observations, 143
 These results use only 2 qubits (HURDAT2 features only, no SHIPS data). Larger gains are expected once SHIPS data is integrated (6 qubits, 32 Pauli observables, 38 augmented features) — the current numbers are a conservative lower bound.
 
 ## Dependencies
-
+Run
 ```
-numpy
-pandas
-scikit-learn
-matplotlib
-joblib
-pennylane
+pip install -r requirements.txt
 ```
-
-No `requirements.txt` is currently checked in; install the packages above (e.g. into `.venv`) before running the pipeline.

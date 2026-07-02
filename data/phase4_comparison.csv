@@ -1,4 +1,4 @@
 model,baseline_auc_roc,quantum_auc_roc,delta_auc_roc,baseline_avg_precision,quantum_avg_precision,delta_avg_precision,baseline_ri_recall,quantum_ri_recall,delta_ri_recall,baseline_ri_precision,quantum_ri_precision,delta_ri_precision,baseline_ri_f1,quantum_ri_f1,delta_ri_f1
 Logistic Regression,0.7339,0.7551,0.0212,0.2699,0.1352,-0.1347,0.6429,0.5357,-0.1072,0.1216,0.1172,-0.0044,0.2045,0.1923,-0.0122
-Gradient Boosting,0.6837,0.628,-0.0557,0.1649,0.1122,-0.0527,0.2143,0.1786,-0.0357,0.1154,0.125,0.0096,0.15,0.1471,-0.0029
+Gradient Boosting,0.6826,0.6586,-0.024,0.1743,0.1192,-0.0551,0.2143,0.1786,-0.0357,0.1224,0.1429,0.0205,0.1558,0.1587,0.0029
 Neural Network,0.7527,0.7379,-0.0148,0.2935,0.1561,-0.1374,0.6071,0.5,-0.1071,0.1589,0.1296,-0.0293,0.2519,0.2059,-0.046

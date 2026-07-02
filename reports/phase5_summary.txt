@@ -23,7 +23,7 @@ OPERATIONAL METRICS (optimal CSI threshold):
 
 CROSS-VALIDATION (5-fold, storm-safe):
   Logistic Regression     Base AUC 0.7825±0.0857  Quant AUC 0.7983±0.0482  Δ=+0.0158
-  Gradient Boosting       Base AUC 0.7643±0.0531  Quant AUC 0.7469±0.0630  Δ=-0.0173
+  Gradient Boosting       Base AUC 0.7643±0.0573  Quant AUC 0.7502±0.0475  Δ=-0.0140
   Neural Network          Base AUC 0.8022±0.0719  Quant AUC 0.7844±0.0343  Δ=-0.0179
 
 NOTE: Current results use 2 qubits (HURDAT2 features only).

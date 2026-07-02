@@ -27,7 +27,7 @@ python phase5_statistical_validation.py
 ## Data
 
 - `data/atlantic_hurricane_tracks.csv` — input HURDAT2 track data (ArcGIS CSV format).
-- `data/al_ships_1982_2023.txt` — optional SHIPS developmental data ([download](https://rammb2.cira.colostate.edu/research/tropical-cyclones/ships/development_data/)); if absent, only HURDAT2-derived features are used.
+- `data/lsdiaga_1982_2023_sat_ts_7day.txt.gz` — optional SHIPS developmental data, gzip-compressed ([download](https://rammb2.cira.colostate.edu/research/tropical-cyclones/ships/development_data/)); if absent, only HURDAT2-derived features are used.
 - Intermediate/derived CSVs, fitted scalers, storm-ID train/test splits, and quantum shadow feature labels are all written to `data/` by phases 1–4.
 
 ## Models & outputs
@@ -47,6 +47,7 @@ From `reports/phase5_summary.txt` (123 storms, 2,506 labelable observations, 143
 These results use only 2 qubits (HURDAT2 features only, no SHIPS data). Larger gains are expected once SHIPS data is integrated (6 qubits, 32 Pauli observables, 38 augmented features) — the current numbers are a conservative lower bound.
 
 ## Dependencies
+
 Run
 ```
 pip install -r requirements.txt

@@ -4,7 +4,7 @@ Hurricane RI Prediction — Quantum Feature Engineering Pipeline
 
 Inputs:
   data/hurdat2_regional_6hr.csv       (Phase 1 output — ArcGIS CSV format)
-  data/al_ships_1982_2023.txt         (SHIPS developmental data, optional)
+  data/lsdiaga_1982_2023_sat_ts_7day.txt.gz (SHIPS developmental data, optional, gzip-compressed)
       → Download from:
         https://rammb2.cira.colostate.edu/research/tropical-cyclones/ships/development_data/
 
@@ -33,6 +33,7 @@ import pandas as pd
 import joblib
 import os
 import re
+import gzip
 import warnings
 from sklearn.preprocessing import MinMaxScaler
 
@@ -42,7 +43,7 @@ T0_INDEX = 2  # t=0 is the 3rd column on each predictor line (-12, -6, 0, ...)
 
 # ── Config ─────────────────────────────────────────────────────────────────────
 HURDAT_CSV     = "data/hurdat2_regional_6hr.csv"
-SHIPS_FILE = "data/lsdiaga_1982_2023_sat_ts_7day.txt"
+SHIPS_FILE = "data/lsdiaga_1982_2023_sat_ts_7day.txt.gz"
 OUT_LABELED    = "data/labeled_dataset.csv"
 OUT_NORMALIZED = "data/normalized_dataset.csv"
 OUT_SCALER     = "data/feature_scaler.joblib"
@@ -172,7 +173,7 @@ def parse_ships(filepath: str) -> pd.DataFrame:
             row[col] = raw * scale if raw is not None else np.nan
         records.append(row)
 
-    with open(filepath, 'r', encoding='utf-8-sig', errors='replace') as f:
+    with gzip.open(filepath, 'rt', encoding='utf-8-sig', errors='replace') as f:
         for line in f:
             parts = line.split()
             if not parts:

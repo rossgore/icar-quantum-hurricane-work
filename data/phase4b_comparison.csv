@@ -1,0 +1,9 @@
+stage,model,n_train,auc_roc,ri_recall,deployment_requires_quantum
+Phase 3 (classical baseline),Logistic Regression,2004,0.7339,0.6429,False
+Phase 3 (classical baseline),Gradient Boosting,2004,0.6826,0.2143,False
+Phase 3 (classical baseline),Neural Network,2004,0.7527,0.6071,False
+Phase 4 (quantum-online),Logistic Regression,2004,0.7551,0.5357,True
+Phase 4 (quantum-online),Gradient Boosting,2004,0.6586,0.1786,True
+Phase 4 (quantum-online),Neural Network,2004,0.7379,0.5,True
+"Phase 4b (LUQPI, offline)",SVM,400,0.7438,0.0857,False
+"Phase 4b (LUQPI, offline)",SVM+ (LUQPI),400,0.737,0.8071,False

@@ -26,8 +26,17 @@ CROSS-VALIDATION (5-fold, storm-safe):
   Gradient Boosting       Base AUC 0.7643±0.0573  Quant AUC 0.7502±0.0475  Δ=-0.0140
   Neural Network          Base AUC 0.8022±0.0719  Quant AUC 0.7844±0.0343  Δ=-0.0179
 
-NOTE: Current results use 2 qubits (HURDAT2 features only).
-After SHIPS data integration (6 qubits, 32 Pauli observables,
-38 augmented features), improvements are expected to be larger.
-These 2-qubit numbers represent the conservative lower bound.
+LUQPI RESULTS (Phase 4b — quantum features as privileged information,
+no quantum computation required at deployment):
+  SVM  (no privileged info)  AUC=0.7111 [0.6039, 0.8114]  RI Recall=0.3927  RI Precision=0.2460
+  SVM+ (privileged, offline) AUC=0.6849 [0.6000, 0.7655]  RI Recall=0.2869  RI Precision=0.1613
+  ΔRI Recall (SVM+ − SVM) = -0.1058   ΔRI Precision (SVM+ − SVM) = -0.0847
+  (Single storm-safe split, n_train=400, both metrics at each model's own
+  CSI-optimal threshold — same convention as the LR/GB/NN rows above.
+  Phase 4b's own figures instead fix a naive 0.5 / zero-crossing threshold,
+  where SVM+ recall is far higher (0.81 vs 0.09 at n=400) but precision is
+  far lower (0.09 vs 0.45) — see data/luqpi_results.csv for the 10-seed
+  mean ± 95% CI on both, and plots/luqpi_svm_comparison.png.)
+
+NOTE: Current results use 6 qubits (HURDAT2 + SHIPS features).
 ======================================================================

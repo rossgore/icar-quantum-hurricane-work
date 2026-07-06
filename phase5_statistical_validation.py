@@ -9,22 +9,27 @@ Inputs:
   data/baseline_results.csv           (Phase 3)
   data/quantum_results.csv            (Phase 4)
   data/shadow_feature_labels.txt      (Phase 4)
+  data/augmented_dataset.csv          (Phase 4 — precomputed test-set shadow features)
   models/*_baseline.joblib            (Phase 3)
   models/*_quantum.joblib             (Phase 4)
+  models/svm_baseline_luqpi.joblib    (Phase 4b)
+  models/svm_plus_luqpi.joblib        (Phase 4b)
 
 Outputs:
   data/phase5_bootstrap_ci.csv        (95% CIs on AUC-ROC and RI Recall)
   data/phase5_operational_metrics.csv (POD/FAR/CSI/PSS at optimal threshold)
-  data/phase5_cv_results.csv          (5-fold CV mean ± std for all models)
-  plots/phase5_paper_figure.png       (4-panel publication-ready figure)
+  data/phase5_cv_results.csv          (5-fold CV mean ± std, LR/GB/NN baseline vs quantum-online)
+  plots/phase5_paper_figure.png       (6-panel publication-ready figure)
   reports/phase5_summary.txt          (abstract-ready numbers)
 
 Metrics computed:
-  Bootstrap (n=1000): 95% CI on AUC-ROC and RI Recall for all 6 models
+  Bootstrap (n=1000): 95% CI on AUC-ROC and RI Recall, for the 6 Phase 3/4
+    models plus the 2 Phase 4b LUQPI models (SVM, SVM+)
   Operational (NHC-standard): POD, FAR, CSI (Threat Score), PSS (Peirce Skill Score)
     at optimal CSI threshold — not the default 0.5
-  Cross-validation: 5-fold StratifiedGroupKFold, storm-safe
-    Reports mean ± std for AUC-ROC and RI Recall
+  Cross-validation: 5-fold StratifiedGroupKFold, storm-safe (LR/GB/NN only —
+    Phase 4b's own 50-400 obs training-size sweep, data/luqpi_results.csv,
+    already characterizes SVM/SVM+ variance across resamples)
 """
 
 import numpy as np
@@ -48,6 +53,8 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
+from luqpi_svm import SVMPlus  # noqa: F401 — needed so joblib can unpickle the saved SVM+ model
+
 warnings.filterwarnings("ignore")
 
 NORMALIZED_CSV   = "data/normalized_dataset.csv"
@@ -56,6 +63,7 @@ TEST_IDS_FILE    = "data/test_storm_ids.txt"
 BASELINE_CSV     = "data/baseline_results.csv"
 QUANTUM_CSV      = "data/quantum_results.csv"
 SHADOW_LBLS_FILE = "data/shadow_feature_labels.txt"
+AUGMENTED_CSV    = "data/augmented_dataset.csv"
 MODELS_DIR       = "models"
 PLOTS_DIR        = "plots"
 REPORTS_DIR      = "reports"
@@ -206,7 +214,7 @@ def find_optimal_threshold(y_true, y_prob, metric='csi'):
 
 def bootstrap_ci(y_true, y_prob, n_boot=N_BOOTSTRAP, rng_seed=RANDOM_STATE):
     rng = np.random.default_rng(rng_seed)
-    auc_scores, recall_scores, csi_scores = [], [], []
+    auc_scores, recall_scores, precision_scores, csi_scores = [], [], [], []
     n = len(y_true)
     opt_thresh, _ = find_optimal_threshold(y_true, y_prob)
 
@@ -218,19 +226,23 @@ def bootstrap_ci(y_true, y_prob, n_boot=N_BOOTSTRAP, rng_seed=RANDOM_STATE):
         auc_scores.append(roc_auc_score(yt, yp))
         m = operational_metrics_at_threshold(yt, yp, opt_thresh)
         recall_scores.append(m['pod'])
+        precision_scores.append(1 - m['far'])   # FAR = FP/(TP+FP) = 1 - precision
         csi_scores.append(m['csi'])
 
     return {
-        'auc_mean':    np.mean(auc_scores),
-        'auc_ci_lo':   np.percentile(auc_scores, 2.5),
-        'auc_ci_hi':   np.percentile(auc_scores, 97.5),
-        'recall_mean': np.mean(recall_scores),
-        'recall_ci_lo':np.percentile(recall_scores, 2.5),
-        'recall_ci_hi':np.percentile(recall_scores, 97.5),
-        'csi_mean':    np.mean(csi_scores),
-        'csi_ci_lo':   np.percentile(csi_scores, 2.5),
-        'csi_ci_hi':   np.percentile(csi_scores, 97.5),
-        'opt_threshold': opt_thresh,
+        'auc_mean':        np.mean(auc_scores),
+        'auc_ci_lo':       np.percentile(auc_scores, 2.5),
+        'auc_ci_hi':       np.percentile(auc_scores, 97.5),
+        'recall_mean':     np.mean(recall_scores),
+        'recall_ci_lo':    np.percentile(recall_scores, 2.5),
+        'recall_ci_hi':    np.percentile(recall_scores, 97.5),
+        'precision_mean':  np.mean(precision_scores),
+        'precision_ci_lo': np.percentile(precision_scores, 2.5),
+        'precision_ci_hi': np.percentile(precision_scores, 97.5),
+        'csi_mean':        np.mean(csi_scores),
+        'csi_ci_lo':       np.percentile(csi_scores, 2.5),
+        'csi_ci_hi':       np.percentile(csi_scores, 97.5),
+        'opt_threshold':   opt_thresh,
     }
 
 
@@ -288,6 +300,17 @@ if __name__ == "__main__":
         quantum_probs[name] = qm.predict_proba(X_test_aug)[:, 1]
     print(f"  Loaded 6 models. Probabilities reconstructed.")
 
+    # Phase 4b (LUQPI): deployment uses classical features only (X_test) —
+    # no shadow features, quantum or otherwise, at prediction time.
+    luqpi_svm  = joblib.load(os.path.join(MODELS_DIR, 'svm_baseline_luqpi.joblib'))
+    luqpi_svmp = joblib.load(os.path.join(MODELS_DIR, 'svm_plus_luqpi.joblib'))
+    luqpi_probs = {
+        'SVM':          luqpi_svm.predict_proba(X_test)[:, 1],
+        'SVM+ (LUQPI)': luqpi_svmp.predict_proba_pos(X_test),
+    }
+    luqpi_names = list(luqpi_probs.keys())
+    print(f"  Loaded 2 Phase 4b LUQPI models (SVM, SVM+). Probabilities reconstructed.")
+
     # ── Step 15: Bootstrap confidence intervals ───────────────────────────────
     print("\n── Step 15: Bootstrap confidence intervals (n=1,000) ────────────────")
     boot_rows = []
@@ -300,6 +323,14 @@ if __name__ == "__main__":
             row.update(ci)
             boot_rows.append(row)
             print(f"AUC={ci['auc_mean']:.4f} [{ci['auc_ci_lo']:.4f}, {ci['auc_ci_hi']:.4f}]")
+
+    for name in luqpi_names:
+        print(f"  Bootstrapping {name} (LUQPI-offline)...", end=' ', flush=True)
+        ci = bootstrap_ci(y_test, luqpi_probs[name])
+        row = {'model': name, 'variant': 'LUQPI-offline'}
+        row.update(ci)
+        boot_rows.append(row)
+        print(f"AUC={ci['auc_mean']:.4f} [{ci['auc_ci_lo']:.4f}, {ci['auc_ci_hi']:.4f}]")
 
     boot_df = pd.DataFrame(boot_rows)
     boot_df.to_csv(OUT_BOOTSTRAP, index=False)
@@ -320,6 +351,13 @@ if __name__ == "__main__":
             print(f"  {name:<22} {variant:<10} {thresh:>7.3f} {m['pod']:>7.3f} "
                   f"{m['far']:>7.3f} {m['csi']:>7.3f} {m['pss']:>7.3f} {m['bias']:>7.3f}")
             op_rows.append({'model': name, 'variant': variant, **m})
+
+    for name in luqpi_names:
+        thresh, _ = find_optimal_threshold(y_test, luqpi_probs[name], metric='csi')
+        m = operational_metrics_at_threshold(y_test, luqpi_probs[name], thresh)
+        print(f"  {name:<22} {'LUQPI':<10} {thresh:>7.3f} {m['pod']:>7.3f} "
+              f"{m['far']:>7.3f} {m['csi']:>7.3f} {m['pss']:>7.3f} {m['bias']:>7.3f}")
+        op_rows.append({'model': name, 'variant': 'LUQPI-offline', **m})
 
     op_df = pd.DataFrame(op_rows)
     op_df.to_csv(OUT_OPERATIONAL, index=False)
@@ -416,19 +454,24 @@ if __name__ == "__main__":
     cv_df.to_csv(OUT_CV, index=False)
     print(f"\n  Saved → {OUT_CV}")
 
-    # ── Step 18: Publication-ready figure (4-panel) ───────────────────────────
+    # ── Step 18: Publication-ready figure (6-panel) ───────────────────────────
     print("\n── Step 18: Publication-ready figure ────────────────────────────────")
     model_colors = {
         'Logistic Regression': ('#1f77b4', '#aec7e8'),
         'Gradient Boosting':   ('#d62728', '#f5a09e'),
         'Neural Network':      ('#2ca02c', '#98df8a'),
     }
-    fig = plt.figure(figsize=(14, 10))
-    gs  = gridspec.GridSpec(2, 2, figure=fig, hspace=0.42, wspace=0.32)
+    luqpi_color = '#9467bd'   # SVM+ (privileged/LUQPI)
+    luqpi_color_light = '#c5b0d5'  # SVM (no privileged info)
+    fig = plt.figure(figsize=(14, 15))
+    gs  = gridspec.GridSpec(3, 2, figure=fig, hspace=0.48, wspace=0.32,
+                             top=0.94, bottom=0.03, left=0.07, right=0.97)
     ax1 = fig.add_subplot(gs[0, 0])
     ax2 = fig.add_subplot(gs[0, 1])
     ax3 = fig.add_subplot(gs[1, 0])
     ax4 = fig.add_subplot(gs[1, 1])
+    ax5 = fig.add_subplot(gs[2, 0])
+    ax6 = fig.add_subplot(gs[2, 1])
 
     # Panel A: ROC curves — baseline (dashed) vs quantum (solid)
     for name in model_names:
@@ -510,6 +553,44 @@ if __name__ == "__main__":
     ax4.legend(fontsize=7, ncol=2)
     ax4.grid(axis='y', alpha=0.25)
 
+    # Panel E: ROC curves — LUQPI SVM (no privileged info, dashed) vs SVM+ (solid)
+    for name, color, ls in [('SVM', luqpi_color_light, '--'),
+                             ('SVM+ (LUQPI)', luqpi_color, '-')]:
+        fpr, tpr, _ = roc_curve(y_test, luqpi_probs[name])
+        auc = roc_auc_score(y_test, luqpi_probs[name])
+        ax5.plot(fpr, tpr, color=color, lw=2, ls=ls, label=f'{name} (AUC={auc:.3f})')
+    ax5.plot([0, 1], [0, 1], 'k--', lw=1, alpha=0.4)
+    ax5.set_xlabel('False Positive Rate', fontsize=10)
+    ax5.set_ylabel('True Positive Rate', fontsize=10)
+    ax5.set_title('(E) LUQPI ROC Curves (Phase 4b)', fontsize=11, fontweight='bold')
+    ax5.legend(fontsize=9)
+    ax5.grid(alpha=0.25)
+
+    # Panel F: LUQPI bootstrap AUC-ROC, RI Recall and RI Precision, with 95% CI.
+    # Recall and Precision are both shown (not recall alone) because SVM+'s
+    # recall gain comes with a real precision cost -- it operates at a much
+    # more liberal decision threshold, not a fundamentally better ranking
+    # (that's what the near-identical AUC-ROC bars show).
+    luqpi_boot = boot_df[boot_df['variant'] == 'LUQPI-offline'].set_index('model')
+    metrics_f  = [('auc', 'AUC-ROC'), ('recall', 'RI Recall'), ('precision', 'RI Precision')]
+    x_pos_f    = np.arange(len(metrics_f))
+    width_f    = 0.35
+    for j, name in enumerate(['SVM', 'SVM+ (LUQPI)']):
+        row = luqpi_boot.loc[name]
+        means = [row[f'{m}_mean'] for m, _ in metrics_f]
+        los   = [row[f'{m}_mean'] - row[f'{m}_ci_lo'] for m, _ in metrics_f]
+        his   = [row[f'{m}_ci_hi'] - row[f'{m}_mean'] for m, _ in metrics_f]
+        offset = (j - 0.5) * width_f
+        ax6.bar(x_pos_f + offset, means, width_f,
+                color=luqpi_color if 'SVM+' in name else luqpi_color_light,
+                label=name, yerr=[los, his], capsize=4, error_kw={'linewidth': 1.5})
+    ax6.set_xticks(x_pos_f)
+    ax6.set_xticklabels([m[1] for m in metrics_f], fontsize=10)
+    ax6.set_ylabel('Score (95% bootstrap CI)', fontsize=10)
+    ax6.set_title('(F) LUQPI: Privileged-Information Gain (n_train=400)', fontsize=11, fontweight='bold')
+    ax6.legend(fontsize=9)
+    ax6.grid(axis='y', alpha=0.25)
+
     n_aug = len(norm_features) + len(shadow_labels)
     fig.suptitle(
         f'Quantum Feature Engineering for Hurricane RI Prediction\n'
@@ -574,12 +655,29 @@ if __name__ == "__main__":
             f"Δ={row.delta_auc_mean:+.4f}"
         )
 
+    svm_row  = boot_df[(boot_df['model'] == 'SVM') & (boot_df['variant'] == 'LUQPI-offline')].iloc[0]
+    svmp_row = boot_df[(boot_df['model'] == 'SVM+ (LUQPI)') & (boot_df['variant'] == 'LUQPI-offline')].iloc[0]
     lines += [
         "",
-        "NOTE: Current results use 2 qubits (HURDAT2 features only).",
-        "After SHIPS data integration (6 qubits, 32 Pauli observables,",
-        "38 augmented features), improvements are expected to be larger.",
-        "These 2-qubit numbers represent the conservative lower bound.",
+        "LUQPI RESULTS (Phase 4b — quantum features as privileged information,",
+        "no quantum computation required at deployment):",
+        f"  SVM  (no privileged info)  AUC={svm_row['auc_mean']:.4f} "
+        f"[{svm_row['auc_ci_lo']:.4f}, {svm_row['auc_ci_hi']:.4f}]  "
+        f"RI Recall={svm_row['recall_mean']:.4f}  RI Precision={svm_row['precision_mean']:.4f}",
+        f"  SVM+ (privileged, offline) AUC={svmp_row['auc_mean']:.4f} "
+        f"[{svmp_row['auc_ci_lo']:.4f}, {svmp_row['auc_ci_hi']:.4f}]  "
+        f"RI Recall={svmp_row['recall_mean']:.4f}  RI Precision={svmp_row['precision_mean']:.4f}",
+        f"  ΔRI Recall (SVM+ − SVM) = {svmp_row['recall_mean']-svm_row['recall_mean']:+.4f}   "
+        f"ΔRI Precision (SVM+ − SVM) = {svmp_row['precision_mean']-svm_row['precision_mean']:+.4f}",
+        "  (Single storm-safe split, n_train=400, both metrics at each model's own",
+        "  CSI-optimal threshold — same convention as the LR/GB/NN rows above.",
+        "  Phase 4b's own figures instead fix a naive 0.5 / zero-crossing threshold,",
+        "  where SVM+ recall is far higher (0.81 vs 0.09 at n=400) but precision is",
+        "  far lower (0.09 vs 0.45) — see data/luqpi_results.csv for the 10-seed",
+        "  mean ± 95% CI on both, and plots/luqpi_svm_comparison.png.)",
+        "",
+        f"NOTE: Current results use {n_qubits} qubits "
+        f"({'HURDAT2 features only' if n_qubits <= 2 else 'HURDAT2 + SHIPS features'}).",
         "=" * 70,
     ]
 
